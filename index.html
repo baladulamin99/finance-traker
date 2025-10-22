@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Finance Tracker</title>
+    <!-- Load Tailwind CSS from CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for better aesthetics and readability */
+        :root {
+            --primary-color: #2563eb; /* Blue-600 */
+            --income-color: #10b981;  /* Emerald-500 */
+            --expense-color: #ef4444; /* Red-500 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        .card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        /* Custom scrollbar for transaction list */
+        #transaction-list-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        #transaction-list-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        #transaction-list-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        #transaction-list-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .income {
+            color: var(--income-color);
+        }
+        .expense {
+            color: var(--expense-color);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 sm:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <!-- Added relative positioning for the Exit button -->
+        <header class="text-center mb-8 relative">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-800">Daily Finance Tracker</h1>
+            <p id="user-display" class="text-sm text-gray-500 mt-1 mb-4">Status: Initializing...</p>
+            
+            <!-- Exit Button -->
+            <button id="exit-btn" class="absolute top-0 right-0 py-1 px-3 sm:py-2 sm:px-4 text-xs sm:text-sm font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 transition duration-150 ease-in-out shadow-lg flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Close
+            </button>
+        </header>
+
+        <!-- Loading Spinner and Error Messages -->
+        <div id="loading-indicator" class="text-center p-4 text-lg text-gray-600">
+            <svg class="animate-spin h-6 w-6 mr-3 inline text-blue-500" viewBox="0 0 24 24">...</svg>
+            Loading Data...
+        </div>
+        <div id="error-message" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
+            <strong class="font-bold">Error:</strong>
+            <span id="error-text" class="block sm:inline"></span>
+        </div>
+
+        <!-- Summary Cards -->
+        <!-- Ensured responsiveness with grid-cols-1 on mobile -->
+        <div id="summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 hidden">
+            <!-- Total Balance Card -->
+            <div class="card bg-white p-4 sm:p-6 rounded-xl border-t-4 border-blue-500">
+                <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Balance</p>
+                <p id="total-balance" class="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">৳0.00</p>
+            </div>
+            <!-- Total Income Card -->
+            <div class="card bg-white p-4 sm:p-6 rounded-xl border-t-4 border-emerald-500">
+                <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Income</p>
+                <p id="total-income" class="text-2xl sm:text-3xl font-bold income mt-1">৳0.00</p>
+            </div>
+            <!-- Total Expense Card -->
+            <div class="card bg-white p-4 sm:p-6 rounded-xl border-t-4 border-red-500">
+                <p class="text-sm font-semibold text-gray-500 uppercase tracking-wider">Total Expense</p>
+                <p id="total-expense" class="text-2xl sm:text-3xl font-bold expense mt-1">৳0.00</p>
+            </div>
+        </div>
+
+        <!-- Transaction Form & List Container (Flex on Desktop) -->
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Transaction Form and Report Button Container (1/3 width on large screens) -->
+            <div class="lg:w-1/3 flex-shrink-0 space-y-4">
+                
+                <!-- New Transaction Form -->
+                <div class="card bg-white p-6 rounded-xl">
+                    <h2 class="text-xl sm:text-2xl font-semibold mb-4 text-gray-800">New Transaction</h2>
+                    <form id="transaction-form" class="space-y-4">
+                        <!-- Description (Now Optional) -->
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-gray-700">Description (Optional)</label>
+                            <input type="text" id="description" placeholder="e.g., Coffee, Salary, Rent (Optional)" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 text-sm">
+                        </div>
+                        <!-- Amount -->
+                        <div>
+                            <label for="amount" class="block text-sm font-medium text-gray-700">Amount (BDT)</label>
+                            <input type="number" id="amount" placeholder="50.00" step="0.01" min="0.01" required class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 text-sm">
+                        </div>
+                        <!-- Type (Radio Buttons) -->
+                        <div class="flex space-x-4">
+                            <!-- Income -->
+                            <div class="flex items-center">
+                                <input id="type-income" name="type" type="radio" value="income" required class="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300">
+                                <label for="type-income" class="ml-2 block text-sm font-medium text-gray-700">Income</label>
+                            </div>
+                            <!-- Expense -->
+                            <div class="flex items-center">
+                                <input id="type-expense" name="type" type="radio" value="expense" required class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300">
+                                <label for="type-expense" class="ml-2 block text-sm font-medium text-gray-700">Expense</label>
+                            </div>
+                        </div>
+                        <!-- Submit Button -->
+                        <button type="submit" class="w-full py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                            Add Transaction
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Report Date Filter Card -->
+                <div class="card bg-white p-6 rounded-xl space-y-4">
+                    <h2 class="text-xl sm:text-2xl font-semibold mb-2 text-gray-800">Report Date Range</h2>
+                    <!-- Start Date -->
+                    <div>
+                        <label for="start-date" class="block text-sm font-medium text-gray-700">Start Date (Optional)</label>
+                        <input type="date" id="start-date" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 text-sm">
+                    </div>
+                    <!-- End Date -->
+                    <div>
+                        <label for="end-date" class="block text-sm font-medium text-gray-700">End Date (Optional)</label>
+                        <input type="date" id="end-date" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 text-sm">
+                    </div>
+                </div>
+                
+                <!-- Report Button -->
+                <button id="report-btn" class="w-full py-3 px-4 border border-blue-600 rounded-lg shadow-sm text-sm font-medium text-blue-600 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm10 2V4H7v2h8zm-2 5a1 1 0 100 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h6a1 1 0 100-2h-6z" clip-rule="evenodd" />
+                    </svg>
+                    Generate Report (PDF)
+                </button>
+            </div>
+
+            <!-- Transaction History List (2/3 width on large screens) -->
+            <div class="lg:w-2/3">
+                <h2 class="text-xl sm:text-2xl font-semibold mb-4 text-gray-800">Transaction History</h2>
+                <!-- Adjusted max-height to use more vertical space on mobile but still allow scrolling -->
+                <div id="transaction-list-container" class="card bg-white rounded-xl p-4 overflow-y-auto max-h-[50vh] sm:max-h-[60vh] md:max-h-[70vh]">
+                    <ul id="transaction-list" class="divide-y divide-gray-200">
+                        <li id="empty-state" class="p-4 text-center text-gray-500">
+                            No transactions yet. Add one above!
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Libraries (jsPDF and autoTable) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, setLogLevel, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL SETUP & CONSTANTS ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db = null;
+        let auth = null;
+        let userId = null;
+        let unsubscribe = null; // To hold the listener cancellation function
+        let currentTransactions = []; // Global to store the latest fetched data
+
+        // DOM Elements
+        const form = document.getElementById('transaction-form');
+        const balanceEl = document.getElementById('total-balance');
+        const incomeEl = document.getElementById('total-income');
+        const expenseEl = document.getElementById('total-expense');
+        const listEl = document.getElementById('transaction-list');
+        const emptyStateEl = document.getElementById('empty-state');
+        const loadingEl = document.getElementById('loading-indicator');
+        const summaryCardsEl = document.getElementById('summary-cards');
+        const userDisplayEl = document.getElementById('user-display');
+        const errorEl = document.getElementById('error-message');
+        const errorTextEl = document.getElementById('error-text');
+        const reportBtn = document.getElementById('report-btn');
+        const exitBtn = document.getElementById('exit-btn'); // New Exit Button element
+        // Date Filter Elements
+        const startDateEl = document.getElementById('start-date');
+        const endDateEl = document.getElementById('end-date');
+
+
+        // --- UTILITY FUNCTIONS ---
+
+        /**
+         * Displays an error message in the UI.
+         * @param {string} message The error message to display.
+         */
+        function displayError(message) {
+            console.error('App Error:', message);
+            errorTextEl.textContent = message;
+            errorEl.classList.remove('hidden');
+            loadingEl.classList.add('hidden'); // Hide loading if error occurs
+        }
+
+        /**
+         * Formats a number as currency string.
+         * Changed to use Bangladeshi Taka (BDT).
+         * @param {number} amount
+         * @returns {string} Formatted currency string.
+         */
+        const formatCurrency = (amount, symbol = true) => {
+            return new Intl.NumberFormat('en-US', {
+                style: symbol ? 'currency' : 'decimal',
+                currency: 'BDT', // CURRENCY IS BDT (Bangladeshi Taka)
+                minimumFractionDigits: 2
+            }).format(amount);
+        };
+        
+        /**
+         * Formats a Unix timestamp into "DD-MM-YYYY" format.
+         * @param {number} timestamp The Unix timestamp in milliseconds.
+         * @returns {string} The formatted date string.
+         */
+        const formatDate = (timestamp) => {
+            const date = new Date(timestamp);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+            const year = date.getFullYear();
+            return `${day}-${month}-${year}`;
+        };
+
+        /**
+         * Converts a "YYYY-MM-DD" date string to a Unix timestamp (start or end of the day).
+         * @param {string} dateString Date string in "YYYY-MM-DD" format from input[type=date].
+         * @param {boolean} endOfDay If true, sets the time to 23:59:59.999 of that day.
+         * @returns {number | null} Unix timestamp in milliseconds, or null if invalid.
+         */
+        const parseDateInput = (dateString, endOfDay = false) => {
+            if (!dateString) return null;
+            
+            const parts = dateString.split('-').map(p => parseInt(p, 10));
+            const date = new Date(parts[0], parts[1] - 1, parts[2]); 
+            
+            if (isNaN(date.getTime())) return null;
+
+            date.setHours(0, 0, 0, 0); 
+            let timestamp = date.getTime();
+
+            if (endOfDay) {
+                timestamp += 24 * 60 * 60 * 1000 - 1;
+            }
+            
+            return timestamp;
+        };
+
+        /**
+         * Calculates the financial summary (Income, Expense, Balance).
+         * @param {Array<Object>} transactions The list of transactions.
+         * @returns {Object} The calculated summary.
+         */
+        function calculateSummary(transactions) {
+            let totalIncome = 0;
+            let totalExpense = 0;
+
+            transactions.forEach(t => {
+                const amount = t.amount;
+                if (t.type === 'income') {
+                    totalIncome += amount;
+                } else if (t.type === 'expense') {
+                    totalExpense += amount;
+                }
+            });
+
+            const totalBalance = totalIncome - totalExpense;
+            return { totalIncome, totalExpense, totalBalance };
+        }
+
+        /**
+         * Calculates and updates the financial summary (Balance, Income, Expense).
+         * @param {Array<Object>} transactions The list of transactions.
+         */
+        function renderSummary(transactions) {
+            const { totalIncome, totalExpense, totalBalance } = calculateSummary(transactions);
+
+            balanceEl.textContent = formatCurrency(totalBalance);
+            incomeEl.textContent = formatCurrency(totalIncome);
+            expenseEl.textContent = formatCurrency(totalExpense);
+
+            // Dynamically apply color to balance based on value
+            balanceEl.classList.remove('text-red-500', 'text-green-600', 'text-gray-900');
+            if (totalBalance < 0) {
+                balanceEl.classList.add('text-red-500');
+            } else if (totalBalance > 0) {
+                 balanceEl.classList.add('text-green-600');
+            } else {
+                 balanceEl.classList.add('text-gray-900');
+            }
+        }
+
+        /**
+         * Renders the transaction list in the UI.
+         * @param {Array<Object>} transactions The list of transactions.
+         */
+        function renderTransactionList(transactions) {
+            listEl.innerHTML = ''; // Clear existing list
+
+            if (transactions.length === 0) {
+                emptyStateEl.classList.remove('hidden');
+                listEl.appendChild(emptyStateEl);
+                return;
+            }
+
+            emptyStateEl.classList.add('hidden');
+
+            // Sort transactions by date (newest first) for display
+            transactions.sort((a, b) => b.timestamp - a.timestamp);
+
+            transactions.forEach(t => {
+                const isIncome = t.type === 'income';
+                const sign = isIncome ? '+' : '-';
+                const amountClass = isIncome ? 'income' : 'expense';
+                const formattedAmount = formatCurrency(t.amount);
+                const date = t.timestamp ? formatDate(t.timestamp) : 'N/A'; 
+
+                const listItem = document.createElement('li');
+                listItem.className = 'flex justify-between items-center p-4 hover:bg-gray-50 transition duration-150 ease-in-out group';
+                listItem.dataset.id = t.id;
+
+                listItem.innerHTML = `
+                    <div class="flex-1 min-w-0 pr-4">
+                        <p class="text-base sm:text-lg font-medium text-gray-800 truncate">${t.description}</p>
+                        <p class="text-xs sm:text-sm text-gray-500">${date}</p>
+                    </div>
+                    <div class="text-right flex items-center space-x-3">
+                        <span class="text-base sm:text-lg font-semibold ${amountClass} whitespace-nowrap">
+                            ${sign}${formattedAmount}
+                        </span>
+                        <button data-id="${t.id}" class="delete-btn text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full bg-gray-50 hover:bg-red-100 focus:outline-none" title="Delete transaction">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                listEl.appendChild(listItem);
+            });
+
+            // Attach delete listeners
+            listEl.querySelectorAll('.delete-btn').forEach(button => {
+                button.addEventListener('click', handleDeleteTransaction);
+            });
+        }
+
+        /**
+         * Generates and downloads a PDF report of all transactions, optionally filtered by date.
+         */
+        function generateReportAndPDF() {
+            reportBtn.disabled = true;
+            reportBtn.textContent = 'Processing...';
+
+            const startDateStr = startDateEl.value; // YYYY-MM-DD
+            const endDateStr = endDateEl.value;     // YYYY-MM-DD
+            
+            let filteredTransactions = [...currentTransactions];
+            let reportDateRange = 'All Time';
+
+            // --- 1. Filtering Logic ---
+            if (startDateStr || endDateStr) {
+                
+                const startTimestamp = parseDateInput(startDateStr, false); 
+                const endTimestamp = parseDateInput(endDateStr, true);
+
+                if ((startDateStr && !startTimestamp) || (endDateStr && !endTimestamp)) {
+                    reportBtn.textContent = 'Invalid Date Format!';
+                    setTimeout(() => { reportBtn.textContent = 'Generate Report (PDF)'; reportBtn.disabled = false; }, 2000);
+                    return;
+                }
+
+                if (startTimestamp && endTimestamp && startTimestamp > endTimestamp) {
+                    reportBtn.textContent = 'Start Date must be before End Date!';
+                    setTimeout(() => { reportBtn.textContent = 'Generate Report (PDF)'; reportBtn.disabled = false; }, 2000);
+                    return;
+                }
+
+                filteredTransactions = currentTransactions.filter(t => {
+                    const tTimestamp = t.timestamp || 0; 
+                    
+                    const passesStart = !startTimestamp || tTimestamp >= startTimestamp;
+                    const passesEnd = !endTimestamp || tTimestamp <= endTimestamp;
+
+                    return passesStart && passesEnd;
+                });
+
+                let startDisplay = 'Beginning';
+                let endDisplay = 'Today';
+
+                if (startTimestamp) {
+                    startDisplay = formatDate(startTimestamp); 
+                }
+                if (endDateStr) {
+                    endDisplay = formatDate(parseDateInput(endDateStr, false)); 
+                }
+
+                if (startTimestamp && endTimestamp) {
+                    reportDateRange = `${startDisplay} to ${endDisplay}`;
+                } else if (startTimestamp) {
+                    reportDateRange = `From ${startDisplay} onwards`;
+                } else if (endTimestamp) {
+                    reportDateRange = `Up to ${endDisplay}`;
+                }
+            }
+            
+            if (filteredTransactions.length === 0) {
+                reportBtn.textContent = 'No Transactions in this Range!';
+                setTimeout(() => { reportBtn.textContent = 'Generate Report (PDF)'; reportBtn.disabled = false; }, 2000);
+                return;
+            }
+
+            // --- 2. PDF Generation starts here using filteredTransactions ---
+            const { totalIncome, totalExpense, totalBalance } = calculateSummary(filteredTransactions);
+            const doc = new window.jspdf.jsPDF();
+            
+            const today = formatDate(Date.now()); 
+
+            // Title
+            doc.setFontSize(22);
+            doc.text("Finance Tracker Report", 14, 20);
+            
+            // Report Metadata (Date, Range, User)
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Generated on: ${today}`, 14, 26);
+            doc.text(`Report Range: ${reportDateRange}`, 14, 31); 
+            doc.text(`User ID: ${userId}`, 14, 36);
+            
+            // Summary Section
+            let summaryY = 48;
+            doc.setFontSize(12);
+            doc.setTextColor(0);
+            doc.text("Summary:", 14, summaryY);
+            
+            const summaryData = [
+                ["Total Income:", formatCurrency(totalIncome), { styles: { fillColor: [209, 250, 229] } }], 
+                ["Total Expense:", formatCurrency(totalExpense), { styles: { fillColor: [254, 226, 226] } }], 
+                ["Net Balance:", formatCurrency(totalBalance), { styles: { fillColor: [219, 234, 254], fontStyle: 'bold' } }] 
+            ];
+
+            doc.autoTable({
+                startY: summaryY + 5,
+                head: [['Metric', 'Amount']],
+                body: summaryData.map(row => row.slice(0, 2)),
+                theme: 'striped',
+                columnStyles: {
+                    1: { halign: 'right' } 
+                },
+                styles: { fontSize: 10, cellPadding: 2 },
+                didParseCell: (data) => {
+                    if (data.row.section === 'body') {
+                        const styleObject = summaryData[data.row.index][2];
+                        if (styleObject) {
+                            Object.assign(data.cell.styles, styleObject.styles);
+                        }
+                    }
+                }
+            });
+
+            let finalY = doc.autoTable.previous.finalY + 10;
+            
+            // Transaction List Table
+            doc.setFontSize(12);
+            doc.text("Transaction Details:", 14, finalY);
+
+            // UPDATED: Currency symbol in header
+            const tableHeaders = ["Date", "Type", "Description", "Amount (BDT)"]; 
+            
+            const sortedTransactions = [...filteredTransactions].sort((a, b) => a.timestamp - b.timestamp);
+
+            const tableRows = sortedTransactions.map(t => [
+                formatDate(t.timestamp), 
+                t.type.charAt(0).toUpperCase() + t.type.slice(1), 
+                t.description,
+                formatCurrency(t.amount, false) 
+            ]);
+
+            doc.autoTable({
+                startY: finalY + 5,
+                head: [tableHeaders],
+                body: tableRows,
+                theme: 'grid',
+                headStyles: { fillColor: [37, 99, 235] }, 
+                columnStyles: {
+                    3: { halign: 'right' }, 
+                    1: { halign: 'center' }
+                },
+                styles: { fontSize: 9, cellPadding: 1.5 }
+            });
+
+            // Save the PDF
+            doc.save(`Finance_Report_${today.replace(/-/g, '_')}.pdf`); 
+
+            reportBtn.disabled = false;
+            reportBtn.textContent = 'Generate Report (PDF)';
+        }
+
+
+        /**
+         * Handles exiting the application (simulated closure for the Canvas environment).
+         */
+        function handleExitApp() {
+            // Cancel any active Firestore listener
+            if (unsubscribe) {
+                unsubscribe();
+            }
+            
+            const mainContainer = document.querySelector('body > div.max-w-4xl.mx-auto');
+            if (mainContainer) {
+                // Replace the entire content with a closure message
+                mainContainer.innerHTML = `
+                    <div class="card bg-white p-12 rounded-xl text-center shadow-2xl mt-16 sm:mt-24">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-emerald-500 mb-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                        <h2 class="text-3xl font-bold text-gray-800 mb-4">Application Closed</h2>
+                        <p class="text-gray-600 text-lg">Thank you for tracking your finances with us!</p>
+                        <p class="text-sm text-gray-400 mt-4">You can refresh the page to reload the application.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // --- FIREBASE AND DATA HANDLING ---
+
+        /**
+         * Gets the Firestore collection path for the current user.
+         * @returns {string} The Firestore collection path.
+         */
+        function getCollectionPath() {
+            return `artifacts/${appId}/users/${userId}/transactions`;
+        }
+
+        /**
+         * Adds a new transaction to Firestore.
+         * @param {Event} e The form submission event.
+         */
+        async function addTransaction(e) {
+            e.preventDefault();
+
+            if (!userId) {
+                displayError("Authentication failed. Cannot save data.");
+                return;
+            }
+
+            let description = document.getElementById('description').value.trim();
+            const amountInput = document.getElementById('amount');
+            const amount = parseFloat(amountInput.value);
+            const typeRadio = document.querySelector('input[name="type"]:checked');
+            
+            // Validation: Ensure a type is selected and amount is valid
+            if (isNaN(amount) || amount <= 0 || !typeRadio) {
+                displayError("Please enter a valid amount greater than zero and select a transaction type (Income/Expense).");
+                return;
+            }
+            const type = typeRadio.value;
+
+            // If description is empty, use a default value based on type
+            if (!description) {
+                description = type === 'income' ? 'Untitled Income' : 'Untitled Expense';
+            }
+
+            const newTransaction = {
+                description,
+                amount,
+                type, // 'income' or 'expense'
+                timestamp: Date.now(),
+                createdAt: serverTimestamp()
+            };
+
+            form.classList.add('opacity-50', 'pointer-events-none');
+
+            try {
+                await addDoc(collection(db, getCollectionPath()), newTransaction);
+                
+                document.getElementById('description').value = '';
+                amountInput.value = '';
+                document.getElementById('description').focus(); 
+
+            } catch (error) {
+                displayError(`Failed to add transaction: ${error.message}`);
+            } finally {
+                form.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
+
+        /**
+         * Deletes a transaction from Firestore.
+         * @param {Event} e The click event from the delete button.
+         */
+        async function handleDeleteTransaction(e) {
+            const transactionId = e.currentTarget.dataset.id;
+            if (!transactionId || !userId) return;
+
+            try {
+                const docRef = doc(db, getCollectionPath(), transactionId);
+                await deleteDoc(docRef);
+            } catch (error) {
+                displayError(`Failed to delete transaction: ${error.message}`);
+            }
+        }
+
+
+        /**
+         * Sets up the real-time listener for transactions.
+         */
+        function setupTransactionListener() {
+            if (unsubscribe) {
+                unsubscribe();
+            }
+
+            if (!db || !userId) {
+                displayError('Database or User ID not initialized.');
+                return;
+            }
+
+            const transactionsCol = collection(db, getCollectionPath());
+            const q = query(transactionsCol);
+
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                loadingEl.classList.add('hidden');
+                summaryCardsEl.classList.remove('hidden');
+                errorEl.classList.add('hidden'); 
+
+                const transactions = [];
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const timestampValue = data.timestamp || (data.createdAt ? data.createdAt.toMillis() : Date.now());
+
+                    transactions.push({
+                        id: doc.id,
+                        description: data.description,
+                        amount: data.amount,
+                        type: data.type,
+                        timestamp: timestampValue
+                    });
+                });
+
+                currentTransactions = transactions; 
+
+                renderSummary(transactions);
+                renderTransactionList(transactions);
+
+            }, (error) => {
+                displayError(`Failed to fetch transactions: ${error.message}`);
+            });
+        }
+
+        /**
+         * Initializes Firebase app, auth, and firestore.
+         */
+        async function setupFirebase() {
+            setLogLevel('Debug');
+            if (!firebaseConfig) {
+                 displayError("Firebase configuration is missing. Cannot proceed.");
+                 return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+            } catch (e) {
+                displayError(`Firebase initialization failed: ${e.message}`);
+                return;
+            }
+
+            // Authentication state listener
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    userId = user.uid;
+                    userDisplayEl.textContent = `User ID: ${userId}`;
+                    form.addEventListener('submit', addTransaction);
+                    reportBtn.addEventListener('click', generateReportAndPDF);
+                    exitBtn.addEventListener('click', handleExitApp); // Add listener for the Exit button
+                    setupTransactionListener(); // Start listening for data
+                }
+            });
+
+            // Initial sign-in attempt
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                displayError(`Authentication failed: ${error.message}. You can still try the app, but data might not persist.`);
+                try {
+                    await signInAnonymously(auth);
+                } catch (anonError) {
+                    displayError(`Fatal Auth Error: ${anonError.message}`);
+                    loadingEl.classList.add('hidden');
+                }
+            }
+        }
+
+        // --- MAIN ENTRY POINT ---
+        window.onload = setupFirebase;
+
+    </script>
+</body>
+</html>
